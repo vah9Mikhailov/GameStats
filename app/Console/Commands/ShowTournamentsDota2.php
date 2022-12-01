@@ -124,7 +124,7 @@ class ShowTournamentsDota2 extends Command
                                 8
                             );
 
-                            $nameTournament = $this->createArray($listTournament);
+                            $nameTournament = array_column($listTournament, 'name');;
                             $pagination = [];
                             if ($tournament->countData('type',$typeStatus) > 8) {
                                 $pagination[0]['text'] = "2 PAGE FORWARD>>";
@@ -146,7 +146,7 @@ class ShowTournamentsDota2 extends Command
                                 8,
                                 ((int)$callbackPage-1)*8
                             );
-                            $nameTournament = $this->createArray($listTournament);
+                            $nameTournament = array_column($listTournament, 'name');
                             $countTournament = $tournament->countData('type', $typeAndPage[0]);
                             $pagination = $this->createPagination($countTournament, (int)$callbackPage, $typeAndPage[0]);
                             $params = $this->createInlineKeyboard(
@@ -259,16 +259,16 @@ class ShowTournamentsDota2 extends Command
     private function createPagination(int $count, int $page, string $keyStatus): array
     {
        $pagination = [];
-       $rightText = sprintf('%d PAGE>>', $page + 1);
+       $rightText = sprintf('%d PAGE FORWARD>>', $page + 1);
        $rightCallback = $keyStatus . " " . ($page + 1);
-       $leftText = sprintf('<<%d PAGE', $page - 1);
+       $leftText = sprintf('<<%d PAGE BACK', $page - 1);
        $leftCallback = $keyStatus . " " . ($page - 1);
         switch ($page) {
             case (1) :
                 $pagination[0]['text'] = sprintf('%d PAGE FORWARD>>', $page + 1);
                 $pagination[0]['callback_data'] = $rightCallback;
                 break;
-            case (round($count/8)):
+            case (floor($count/8) + 1):
                 $pagination[0]['text'] = sprintf('<<%d PAGE BACK', $page - 1);
                 $pagination[0]['callback_data'] = $leftCallback;
                 break;
@@ -281,19 +281,5 @@ class ShowTournamentsDota2 extends Command
         }
 
         return $pagination;
-    }
-
-
-    /**
-     * @param $data
-     * @return array
-     */
-    private function createArray($data): array
-    {
-        $nameTournament = [];
-        foreach ($data as $value) {
-            $nameTournament[] = $value->name;
-        }
-        return $nameTournament;
     }
 }
