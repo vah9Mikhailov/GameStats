@@ -2,8 +2,10 @@
 
 namespace App\Console\Commands;
 
+use App\Api\Liquipedia;
 use App\Models\Tournament;
 use Illuminate\Console\Command;
+use PHPHtmlParser\Dom;
 
 class ShowGamesFromTournaments extends Command
 {
@@ -41,22 +43,55 @@ class ShowGamesFromTournaments extends Command
         $tournament = new Tournament();
         $listTournaments = $tournament->select();
         $namesLinks = array_column($listTournaments,'link','name');
-        $arguments = $this->argument('tournament');
-        $argString = implode(' ', $arguments);
+        $argument = $this->argument('tournament');
+        $argString = implode(' ', $argument);
         if (array_key_exists($argString, $namesLinks)){
             $dataTournament = $tournament->selectByColumn('name', $argString);
             $link = $dataTournament->link;
+            $arrLink = explode('/', $link);
+            $arrLink = array_slice($arrLink,2);
+            $strLink = implode('/', $arrLink);
 
-            $endPoint = 'https://liquipedia.net/dota2/api.php';
-            $params = [
-                'action' => "parse",
-                'format' => "json",
-                'page'=> "$link"
-            ];
-            $url = $endPoint . "?" . http_build_query($params);
-            $content = $this->getContents($url);
+            $liquipedia = new Liquipedia();
 
-            $result = json_decode($content, true);
+            $result = $liquipedia->getPageRequest($strLink);
+
+            $dom = new Dom();
+            $dom->loadStr($result);
+            $templateBox = $dom->getElementsByClass('template-box')->toArray();
+            $rostersTeams = [];
+            foreach ($templateBox as $template) {
+                $dom->loadStr($template->innerHtml());
+                if (count($dom->getElementsByClass('teamcard'))) {
+                    $nameTeamHtml = $dom->loadStr($dom->getElementsByClass('teamcard')->innerHtml());
+                    $nameTeam = $nameTeamHtml->getElementsByTag('a')->innerHtml();
+                    if (count($dom->getElementsByClass('list')) > 1) {
+                        $rosterHtmlByTable = $dom->getElementsByTag('table')[1];
+                    } else {
+                        $rosterHtmlByTable = $dom->getElementsByTag('table')[0];
+                    }
+                    $rosterInnerHtml = $dom->loadStr($rosterHtmlByTable->innerHtml());
+                    $rosterHtmlByTds = $rosterInnerHtml->getElementsByTag('td')->toArray();
+                    $roster = [];
+                    foreach ($rosterHtmlByTds as $rosterHtmlByTd) {
+                        $dom->loadStr($rosterHtmlByTd->innerHtml());
+                        if ($dom->getElementsByTag('a')[1]) {
+                            $roster[] = $dom->getElementsByTag('a')[1]->innerHtml();
+                        }
+
+                    }
+                    $rostersTeams[$nameTeam] = $roster;
+                }
+
+
+
+            }
+
+
+
+
+
+
 
         }
 

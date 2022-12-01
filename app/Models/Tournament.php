@@ -57,9 +57,12 @@ class Tournament extends Model
     /**
      * @param string $key
      * @param string $value
-     * @return object|null
+     * @param bool $amount
+     * @param int $limit
+     * @param int $offset
+     * @return array|mixed
      */
-    public function selectByColumn(string $key, string $value): ?object
+    public function selectByColumn(string $key, string $value, bool $amount = false, int $limit = 0, int $offset = 0)
     {
         $tableName = $this->name;
         $params = [
@@ -68,11 +71,22 @@ class Tournament extends Model
 
         $query = "SELECT * FROM `{$tableName}` WHERE {$key} = :{$key}";
 
-        $result = DB::selectOne($query, $params);
+        if (!empty($limit)) {
+            $query .= " LIMIT " . $limit;
+        }
 
-        return $result;
+        if (!empty($offset)) {
+            $query .= " OFFSET " . $offset;
+        }
+
+        return ($amount) ?  DB::select($query, $params) : DB::selectOne($query, $params);
     }
 
+    /**
+     * @param array $data
+     * @param array $attribute
+     * @return void
+     */
     public function updateData(array $data, array $attribute): void
     {
 
@@ -88,6 +102,21 @@ class Tournament extends Model
                 " WHERE " . array_key_first($attribute) . " =:" . array_key_first($attribute);
 
         DB::update($query, $arrayMerge);
+    }
+
+    public function countData(string $key, string $value)
+    {
+        $tableName = $this->name;
+        $params = [
+            $key => $value
+        ];
+
+        $query = "SELECT COUNT(*) as count FROM `{$tableName}` WHERE {$key} = :{$key}";
+        $select = DB::select($query, $params);
+
+        foreach ($select as $value) {
+            return $value->count;
+        }
     }
 
 }
