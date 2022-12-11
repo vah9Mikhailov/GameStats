@@ -14,7 +14,7 @@ class Tournament extends Model
     /**
      * @var string
      */
-    private $name = 'tournaments';
+    private $tableName = 'tournaments';
 
 
     /**
@@ -22,12 +22,11 @@ class Tournament extends Model
      */
     public function select(): array
     {
-        $tableName = $this->name;
+        $tableName = $this->tableName;
 
         $query = "SELECT * FROM `{$tableName}`";
-        $result = DB::select($query);
 
-        return $result;
+        return DB::select($query);
     }
 
 
@@ -38,7 +37,7 @@ class Tournament extends Model
     public function insert(?array $data): void
     {
 
-        $tableName = $this->name;
+        $tableName = $this->tableName;
 
         $prepared = [];
         foreach ($data as $field => $value) {
@@ -64,7 +63,7 @@ class Tournament extends Model
      */
     public function selectByColumn(string $key, string $value, bool $amount = false, int $limit = 0, int $offset = 0)
     {
-        $tableName = $this->name;
+        $tableName = $this->tableName;
         $params = [
             $key => $value
         ];
@@ -94,7 +93,7 @@ class Tournament extends Model
             $fields[] = "$field =:$field";
         }
 
-        $tableName = $this->name;
+        $tableName = $this->tableName;
 
         $arrayMerge = array_merge($data, $attribute);
 
@@ -106,7 +105,7 @@ class Tournament extends Model
 
     public function countData(string $key, string $value)
     {
-        $tableName = $this->name;
+        $tableName = $this->tableName;
         $params = [
             $key => $value
         ];
