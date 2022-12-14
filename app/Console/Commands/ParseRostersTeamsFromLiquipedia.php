@@ -7,16 +7,18 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\Log;
 use PHPHtmlParser\Dom;
+use PHPHtmlParser\Exceptions\EmptyCollectionException;
+
 ini_set('memory_limit', '-1');
 
-class ShowRostersTeamsFromTournaments extends Command
+class ParseRostersTeamsFromLiquipedia extends Command
 {
     /**
      * The name and signature of the console command.
      *
      * @var string
      */
-    protected $signature = 'dota2:roster {--tournament*}';
+    protected $signature = 'parse:roster {--tournament*}';
 
     /**
      * The console command description.
@@ -46,7 +48,7 @@ class ShowRostersTeamsFromTournaments extends Command
         $listTournaments = $tournament->select();
         $namesLinks = array_column($listTournaments,'link','name');
 
-        $listTournamentsFromParsing = new ParseInfoTournamentsFromLiquidpeia();
+        $listTournamentsFromParsing = new ParseInfoTournamentsFromLiquidpedia();
         foreach ($listTournamentsFromParsing->handle() as $turnir) {
 //            if ($arguments = $this->argument('tournament')) {
 //                $turnir['name'] = implode(' ', $arguments);
@@ -70,7 +72,12 @@ class ShowRostersTeamsFromTournaments extends Command
                     $dom->loadStr($template->innerHtml());
                     if (count($dom->getElementsByClass('teamcard'))) {
                         $nameTeamHtml = $dom->loadStr($dom->getElementsByClass('teamcard')->innerHtml());
-                        $nameTeam = $nameTeamHtml->getElementsByTag('a')->innerHtml();
+                        try {
+                            $nameTeam = $nameTeamHtml->getElementsByTag('a')->innerHtml();
+                        } catch (EmptyCollectionException $e) {
+                            Log::error($nameTeamHtml);
+                        }
+
                         if (count($dom->getElementsByClass('list')) > 1) {
                             $rosterHtmlByTable = $dom->getElementsByTag('table')[1];
                         } else {
@@ -118,6 +125,9 @@ class ShowRostersTeamsFromTournaments extends Command
                     $dataFromTable = $tournamentRosterTeam->selectByColumn(
                         ['name' => $nameTeam, 'tournament_id' => $dataTournament->id]
                     );
+                    $rosterTeamFromTable = $tournamentRosterTeam->selectByColumn(
+                        ['roster' => json_encode($rosterTeam), 'tournament_id' => $dataTournament->id]
+                    );
                     if ($dataFromTable){
                         $hashFromDataTable = md5($dataFromTable->roster);
                         $hashRostersTeams = md5(json_encode($rosterTeam));
@@ -129,6 +139,12 @@ class ShowRostersTeamsFromTournaments extends Command
                                 $changes, array_slice((array)$dataFromTable,0, 1)
                             );
                         }
+                    } elseif ($rosterTeamFromTable) {
+                        $changes['updated_at'] = Date::now()->toDateTimeString();
+                        $changes['name'] = $nameTeam;
+                        $tournamentRosterTeam->updateData(
+                            $changes, array_slice((array)$rosterTeamFromTable,0, 1)
+                        );
                     } else {
                         $data['name'] = $nameTeam;
                         $data['roster'] = json_encode($rosterTeam);

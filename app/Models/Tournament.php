@@ -103,7 +103,12 @@ class Tournament extends Model
         DB::update($query, $arrayMerge);
     }
 
-    public function countData(string $key, string $value)
+    /**
+     * @param string $key
+     * @param string $value
+     * @return int
+     */
+    public function countData(string $key, string $value): int
     {
         $tableName = $this->tableName;
         $params = [

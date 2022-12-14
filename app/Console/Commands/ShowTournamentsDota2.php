@@ -3,17 +3,13 @@
 namespace App\Console\Commands;
 
 use App\Api\DotaBotServiceLocator;
-use App\Api\Liquipedia;
 use App\Models\TelegramBot;
 use App\Models\Tournament;
 use Illuminate\Console\Command;
-use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\Log;
-use PHPHtmlParser\Dom;
 use Telegram\Bot\Api;
-use TelegramBot\InlineKeyboardPagination\InlineKeyboardPagination;
-use function Composer\Autoload\includeFile;
+use Telegram\Bot\Exceptions\TelegramSDKException;
+
 
 class ShowTournamentsDota2 extends Command
 {
@@ -44,54 +40,81 @@ class ShowTournamentsDota2 extends Command
     }
 
 
-    public function handle(object $update, array $statusTournament, Tournament $tournament, Api $telegramBotApi, TelegramBot $telegramBot)
+    /**
+     * @param object $update
+     * @param array $typeStatus
+     * @param Tournament $tournament
+     * @return array
+     */
+    public function choiceTournamentFirstPage(
+        object $update,
+        array $typeStatus,
+        Tournament $tournament
+    ): array
     {
-        $typeAndPage = explode(' ', $update->callbackQuery['data']);
-        if ($typeStatus = array_search($typeAndPage[0], $statusTournament, true)
-        ) {
-            $listTournament = $tournament->selectByColumn(
-                'type',
-                $typeStatus,
-                true,
-                8
-            );
+        $listTournament = $tournament->selectByColumn(
+            'type',
+            key($typeStatus),
+            true,
+            8
+        );
 
-            $nameTournament = array_column($listTournament, 'name');;
-            $pagination = [];
-            if ($tournament->countData('type',$typeStatus) > 8) {
-                $pagination[0]['text'] = "2 PAGE FORWARD>>";
-                $pagination[0]['callback_data'] = $typeStatus . " 2";
-            }
-            $telegramBot = DotaBotServiceLocator::getTelegramBot();
-            $params = $telegramBot->createInlineKeyboard(
-                $update->getMessage(),
-                "Выберите турнир",
-                $nameTournament,
-                $pagination
-            );
-
-            $telegramBotApi->sendMessage($params);
-            return $update->updateId;
-        } elseif ($callbackPage = array_search($typeAndPage[1], range(0,100))) {
-            $listTournament = $tournament->selectByColumn(
-                'type',
-                $typeAndPage[0],
-                true,
-                8,
-                ((int)$callbackPage-1)*8
-            );
-            $nameTournament = array_column($listTournament, 'name');
-            $countTournament = $tournament->countData('type', $typeAndPage[0]);
-            $pagination = $this->createPagination($countTournament, (int)$callbackPage, $typeAndPage[0]);
-            $params = $telegramBot->createInlineKeyboard(
-                $update->getMessage(),
-                "Выберите турнир",
-                $nameTournament,
-                $pagination
-            );
-            $telegramBotApi->sendMessage($params);
-            return $update->updateId;
+        $nameTournament = array_column($listTournament, 'name');
+        $pagination = [];
+        if ($tournament->countData('type',key($typeStatus)) > 8) {
+            $pagination[0]['text'] = "2 PAGE FORWARD>>";
+            $pagination[0]['callback_data'] = current($typeStatus) . " 2 page";
         }
+        $telegramBot = DotaBotServiceLocator::getTelegramBot();
+        $backButton = $telegramBot->createBackButton('/start');
+
+        return $telegramBot->createInlineKeyboard(
+            $update->getMessage(),
+            "Выберите турнир статуса " . "<b>" . '"' . current($typeStatus) . '"' . "</b>",
+            $nameTournament,
+            $backButton,
+            $pagination
+        );
+    }
+
+
+    /**
+     * @param Tournament $tournament
+     * @param TelegramBot $telegramBot
+     * @param array $typeStatus
+     * @param array $callbackPage
+     * @param object $update
+     * @return array
+     */
+    public function choiceTournamentWithPagination(
+        Tournament $tournament,
+        TelegramBot $telegramBot,
+        array $typeStatus,
+        array $callbackPage,
+        object $update
+    ): array
+    {
+        $offset = ($callbackPage[1]-1)*8;
+        $listTournament = $tournament->selectByColumn(
+            'type',
+            key($typeStatus),
+            true,
+            8,
+            $offset
+        );
+        $limit = $offset + 8;
+        $nameTournament = array_column($listTournament, 'name');
+        $countTournament = $tournament->countData('type', key($typeStatus));
+        $pagination = $this->createPagination($countTournament, $callbackPage[1], current($typeStatus), $limit);
+        $backButton = $telegramBot->createBackButton('/start');
+
+        return $telegramBot->createInlineKeyboard(
+            $update->getMessage(),
+            "Выберите турнир статуса " . "<b>" . '"' . current($typeStatus) . '"' . "</b>",
+            $nameTournament,
+            $backButton,
+            $pagination
+        );
     }
 
 
@@ -102,13 +125,13 @@ class ShowTournamentsDota2 extends Command
      * @param string $keyStatus
      * @return array
      */
-    private function createPagination(int $count, int $page, string $keyStatus): array
+    public function createPagination(int $count, int $page, string $keyStatus, int $limit): array
     {
        $pagination = [];
        $rightText = sprintf('%d PAGE FORWARD>>', $page + 1);
-       $rightCallback = $keyStatus . " " . ($page + 1);
+       $rightCallback = $keyStatus . " " . ($page + 1) . " page";
        $leftText = sprintf('<<%d PAGE BACK', $page - 1);
-       $leftCallback = $keyStatus . " " . ($page - 1);
+       $leftCallback = $keyStatus . " " . ($page - 1) . " page";
         switch ($page) {
             case (1) :
                 $pagination[0]['text'] = sprintf('%d PAGE FORWARD>>', $page + 1);
@@ -121,8 +144,10 @@ class ShowTournamentsDota2 extends Command
             default:
                 $pagination[0]['text'] = $leftText;
                 $pagination[0]['callback_data'] = $leftCallback;
-                $pagination[1]['text'] = $rightText;
-                $pagination[1]['callback_data'] = $rightCallback;
+                if ($limit !== $count) {
+                    $pagination[1]['text'] = $rightText;
+                    $pagination[1]['callback_data'] = $rightCallback;
+                }
                 break;
         }
 

@@ -2,6 +2,7 @@
 
 namespace App\Api;
 
+use App\Console\Commands\ShowTournamentRostersTeam;
 use App\Console\Commands\ShowTournamentsDota2;
 use App\Models\TelegramBot;
 use App\Models\Tournament;
@@ -45,12 +46,17 @@ final class DotaBotServiceLocator
     /**
      * @var ShowTournamentsDota2
      */
-    private static $commandTournaments;
+    private static $commandShowTournaments;
 
     /**
      * @var TournamentRosterTeam
      */
     private static $tournamentRosterTeam;
+
+    /**
+     * @var ShowTournamentRostersTeam
+     */
+    private static $commandShowRostersTeam;
 
 
     /**
@@ -125,10 +131,10 @@ final class DotaBotServiceLocator
     public static function getCommandShowTournaments(): ShowTournamentsDota2
     {
 
-        if (!self::$commandTournaments) {
-            self::$commandTournaments = new ShowTournamentsDota2();
+        if (!self::$commandShowTournaments) {
+            self::$commandShowTournaments = new ShowTournamentsDota2();
         }
-        return self::$commandTournaments;
+        return self::$commandShowTournaments;
     }
 
     /**
@@ -152,6 +158,18 @@ final class DotaBotServiceLocator
             self::$tournamentRosterTeam = new TournamentRosterTeam();
         }
         return self::$tournamentRosterTeam;
+    }
+
+    /**
+     * @return ShowTournamentRostersTeam
+     */
+    public static function getCommandShowRostersTeam(): ShowTournamentRostersTeam
+    {
+
+        if (!self::$commandShowRostersTeam) {
+            self::$commandShowRostersTeam = new ShowTournamentRostersTeam();
+        }
+        return self::$commandShowRostersTeam;
     }
 
 }

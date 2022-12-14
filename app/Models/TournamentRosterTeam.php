@@ -17,7 +17,7 @@ class TournamentRosterTeam extends Model
      * @param array $params
      * @return mixed
      */
-    public function selectByColumn(array $params)
+    public function selectByColumn(array $params, bool $amount = false, int $limit = 0, int $offset = 0)
     {
         $tableName = $this->tableName;
         $key = [];
@@ -25,16 +25,22 @@ class TournamentRosterTeam extends Model
             $key[] = $k;
         }
 
-        $query = '';
-        for($i = 0; $i < (count($params)-1); $i++ ) {
-            $query = "SELECT * FROM `{$tableName}` WHERE {$key[$i]} = :{$key[$i]}";
-            if (count($params) > 1) {
-                $query .= " AND {$key[$i+1]} = :{$key[$i+1]}";
-            }
+        $query = "SELECT * FROM `{$tableName}` WHERE {$key[0]} = :{$key[0]}";
+        for($i = 1; $i < count($key); $i++) {
+            $query .= " AND {$key[$i]} = :{$key[$i]}";
         }
 
-        return DB::selectOne($query, $params);
+        if (!empty($limit)) {
+            $query .= " LIMIT " . $limit;
+        }
+
+        if (!empty($offset)) {
+            $query .= " OFFSET " . $offset;
+        }
+
+        return ($amount) ?  DB::select($query, $params) : DB::selectOne($query, $params);
     }
+
     /**
      * @param array|null $data
      * @return void
@@ -75,5 +81,25 @@ class TournamentRosterTeam extends Model
             " WHERE " . array_key_first($attribute) . " =:" . array_key_first($attribute);
 
         DB::update($query, $dataAttribute);
+    }
+
+    /**
+     * @param string $key
+     * @param string $value
+     * @return int
+     */
+    public function countData(string $key, string $value): int
+    {
+        $tableName = $this->tableName;
+        $params = [
+            $key => $value
+        ];
+
+        $query = "SELECT COUNT(*) as count FROM `{$tableName}` WHERE {$key} = :{$key}";
+        $select = DB::select($query, $params);
+
+        foreach ($select as $value) {
+            return $value->count;
+        }
     }
 }

@@ -8,7 +8,7 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\Log;
 
-class ParseInfoTournamentsFromLiquidpeia extends Command
+class ParseInfoTournamentsFromLiquidpedia extends Command
 {
     /**
      * The name and signature of the console command.
@@ -63,12 +63,14 @@ class ParseInfoTournamentsFromLiquidpeia extends Command
 
         }
 
+
+        $tournament = DotaBotServiceLocator::getTournament();
+
+        foreach ($listTournaments as $dataTournament) {
+            $this->insertOrUpdate($tournament, $dataTournament);
+        }
+
         return $listTournaments;
-//        $tournament = DotaBotServiceLocator::getTournament();
-//
-//        foreach ($listTournaments as $dataTournament) {
-//            $this->insertOrUpdate($tournament, $dataTournament);
-//        }
     }
 
 
